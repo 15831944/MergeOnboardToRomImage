@@ -28,6 +28,9 @@
 #define  PROGRESSPOS_DEAL    20
 #define  PROGRESSPOS_END     200
 
+//本项目中IC类型总数
+#define  SUM_IC_TYPE         3     
+
 typedef struct  
 {
 	char szNameFile[MAX_PATH];        //文件名
@@ -39,6 +42,7 @@ typedef struct
 
 typedef struct  
 {
+	int iValidInfo;
 	NAME_ADD name_add[9];
 }INFO_NAME_ADD,*P_INFO_NAME_ADD;
 
@@ -50,7 +54,7 @@ public:
 	CMergeOnboardToRomImageDlg(CWnd* pParent = NULL);	// 标准构造函数
 
 	int GetMergeFileSize( P_INFO_NAME_ADD infoNameAdd );   //读取文件大小到infoNameAdd结构体中
-	int GetInfromatinFromRomImageFile(char *Path, P_INFO_NAME_ADD infoNameAdd);  // 从RomImage文件中获取到要合并文件的名字和地址信息
+	int GetInfromatinFromRomImageFile(CString Path, P_INFO_NAME_ADD infoNameAdd);  // 从RomImage文件中获取到要合并文件的名字和地址信息
 	int VerifyFlagFromArray( char v_pVerifyFlag[COL][ROW], char v_pGetDateBuf[LENTH_TITLE], int iFlag );
 	int ConvertAddrAndSequence( P_INFO_NAME_ADD infoNameAdd );    //将地址字符串转化成Long类型，并通过顺地址排序
 	int VerifyAddrError( P_INFO_NAME_ADD infoNameAdd );           //验证地址字符串是否有问题
@@ -85,7 +89,7 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
 public:
-	afx_msg void OnBnClickedButton1();
+	//afx_msg void OnBnClickedButton1();
 	afx_msg void OnBnClickedOk();
 	CComboBox m_RomSizeCombo;
 };

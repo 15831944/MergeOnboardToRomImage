@@ -7,6 +7,7 @@
 #include "MergeOnboardToRomImageDlg.h"
 #include "afxdialogex.h"
 #include <io.h> 
+#include <locale>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -90,11 +91,17 @@ char AddFlag[COL][ROW]   =   {
 
 char *MergeRes_name = "ResultFile.bin";
 
-long SizeRomImageContain[10] = {
-									0x01000000,                   //对应下拉菜单的第一个芯片 MX25L12835 容量，对应下标 m_RomSizeCombo.InsertString(0,_T("MX25L12835"));
-									0x02000000,                   //对应下拉菜单的第一个芯片 MX25L25635 容量，对应下标 m_RomSizeCombo.InsertString(1,_T("MX25L25635"));
-									0x04000000,                   //对应下拉菜单的第一个芯片 MX25L51235 容量，对应下标 m_RomSizeCombo.InsertString(2,_T("MX66L51235"));
-							    };
+long SizeRomImageContain[SUM_IC_TYPE] = {
+												0x01000000,                //对应下拉菜单的第一个芯片 MX25L12835 容量，对应下标 m_RomSizeCombo.InsertString(0,_T("MX25L12835"));
+												0x02000000,                //对应下拉菜单的第一个芯片 MX25L25635 容量，对应下标 m_RomSizeCombo.InsertString(1,_T("MX25L25635"));
+												0x04000000                 //对应下拉菜单的第一个芯片 MX25L51235 容量，对应下标 m_RomSizeCombo.InsertString(2,_T("MX66L51235"));
+											};
+char *RomImageICName[SUM_IC_TYPE] ={
+												"MX25L12835",
+												"MX25L25635",
+												"MX66L51235"
+											 };
+
 
 // 用于应用程序“关于”菜单项的 CAboutDlg 对话框
 
@@ -146,7 +153,7 @@ BEGIN_MESSAGE_MAP(CMergeOnboardToRomImageDlg, CDialogEx)
 	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
-	ON_BN_CLICKED(IDC_BUTTON1, &CMergeOnboardToRomImageDlg::OnBnClickedButton1)
+	//ON_BN_CLICKED(IDC_BUTTON1, &CMergeOnboardToRomImageDlg::OnBnClickedButton1)
 	ON_BN_CLICKED(IDOK, &CMergeOnboardToRomImageDlg::OnBnClickedOk)
 END_MESSAGE_MAP()
 
@@ -185,10 +192,14 @@ BOOL CMergeOnboardToRomImageDlg::OnInitDialog()
 	// TODO: 在此添加额外的初始化代码
 	
 	//RomSize下拉菜单初始化
-	m_RomSizeCombo.InsertString(0,_T("MX25L12835"));
-	m_RomSizeCombo.InsertString(1,_T("MX25L25635"));
-	m_RomSizeCombo.InsertString(2,_T("MX66L51235"));
-
+	for ( int iCnt=0; iCnt<SUM_IC_TYPE; iCnt++  )
+	{
+		m_RomSizeCombo.InsertString( iCnt,RomImageICName[iCnt] );
+	}
+// 	m_RomSizeCombo.InsertString( 0,_T("MX25L12835") );
+// 	m_RomSizeCombo.InsertString( 1,_T("MX25L25635") );
+// 	m_RomSizeCombo.InsertString( 2,_T("MX66L51235") );
+	
 	iLenOnboardPath = 0;   iSumFile = 0;
 	memset( szPath, 0x00, MAX_PATH );
 	memset( &infoNameAdd, '\0', sizeof(infoNameAdd) );
@@ -269,7 +280,7 @@ int CMergeOnboardToRomImageDlg::GetMergeFileSize( P_INFO_NAME_ADD infoNameAdd )
 	iAddrSet += strlen("缺少以下文件:\n");
 	for ( int iCnt=0; iCnt<iSumFile; iCnt++ )
 	{
-		memset( pFile, '\0', sizeof(pFile) );   lSizeFile = 0;
+ 		memset( pFile, '\0', sizeof(pFile) );   lSizeFile = 0;
 		sprintf( pFile, "%s", szPath );
 		sprintf( pFile+iLenOnboardPath, "\\" );
 		sprintf( pFile+iLenOnboardPath+1, "%s", FileName[iCnt] );
@@ -282,6 +293,8 @@ int CMergeOnboardToRomImageDlg::GetMergeFileSize( P_INFO_NAME_ADD infoNameAdd )
 			iAddrSet += strlen(FileName[iCnt]);
 			sprintf( szErrorPrompt+iAddrSet, ";\n", strlen(";\n") );
 			iAddrSet += strlen(";\n");
+			infoNameAdd->name_add[iCnt].bAddrError = true;
+			(infoNameAdd->iValidInfo)--;
 			continue;     //打不开文件，继续下一个文件读写
 		}
 		while( cGetChar = getc( fp ) != EOF )
@@ -296,38 +309,17 @@ int CMergeOnboardToRomImageDlg::GetMergeFileSize( P_INFO_NAME_ADD infoNameAdd )
 	//缺什么文件就提示出来
 	if( 1==iRes )
 	{
-		AfxMessageBox(_T(szErrorPrompt));
+		sprintf( szErrorPrompt + strlen(szErrorPrompt), "是否继续合并文件！",strlen("是否继续合并文件！") );
+		if ( IDYES == AfxMessageBox(_T(szErrorPrompt),MB_YESNO) )
+		{
+			return iRes;
+		}
+		else
+		{
+			return FALSE;
+		}
 	}
 	return iRes;
-}
-
-
-void CMergeOnboardToRomImageDlg::OnBnClickedButton1()
-{
-	// TODO: 在此添加控件通知处理程序代码 
-	CString str;
-	memset(szPath, '\0', sizeof(szPath));
-	BROWSEINFO bi;
-	bi.hwndOwner = m_hWnd;
-	bi.pidlRoot = NULL;
-	bi.pszDisplayName = szPath;
-	bi.lpszTitle = "请选择Onboard文件目录：";
-	bi.ulFlags = 0;
-	bi.lpfn = NULL;
-	bi.lParam = 0;
-	bi.iImage = 0;
-	//弹出选择目录对话框
-	LPITEMIDLIST lp = SHBrowseForFolder(&bi);
-
-	if(lp && SHGetPathFromIDList(lp, szPath))
-	{
-		SetDlgItemText(IDC_EDIT1,szPath);
-		iLenOnboardPath = strlen( szPath );
-	}
-	else
-	{
-		AfxMessageBox("Browse Dir Error!");
-	}
 }
 
 
@@ -347,19 +339,26 @@ void CMergeOnboardToRomImageDlg::OnBnClickedOk()
 	{
 		;//Alian:待后续还有其他需要合并的文件时扩展
 	}
+	//初始化有效数据数量，留待后续错误时计数
+	infoNameAdd.iValidInfo = iSumFile;
 	//设置进度条长度、每一步长度
 	m_Pro->SetRange( PROGRESSPOS_START, PROGRESSPOS_END );
 	m_Pro->SetPos( PROGRESSPOS_START );
-	//m_Pro->SetStep(1);
 	// TODO: 在此添加控件通知处理程序代码
+
+	CString szPathStr;
+ 	GetDlgItemText( IDC_MFCEDITBROWSE1,szPathStr);
+	sprintf(szPath,"%s",szPathStr);
+	iLenOnboardPath = strlen(szPath);
+
 	// 先找有没有RomCode.inf文件
 	char Path_RomCodeInf[MAX_PATH] = {0};
 	memset( Path_RomCodeInf, '\0', sizeof(Path_RomCodeInf) );
-	sprintf( Path_RomCodeInf, "%s", szPath );
-	sprintf( Path_RomCodeInf+iLenOnboardPath, "\\" );
-	sprintf( Path_RomCodeInf+iLenOnboardPath+1, "%s", RomCodeinf_name );
-	if ( 0 == access(Path_RomCodeInf,0) )
-	{
+	sprintf( Path_RomCodeInf, "%s", szPathStr );
+ 	sprintf( Path_RomCodeInf+iLenOnboardPath, "\\" );
+ 	sprintf( Path_RomCodeInf+iLenOnboardPath+1, "%s", RomCodeinf_name );
+ 	if ( 0 == access(Path_RomCodeInf,0) )
+ 	{
 		//先读取各文件实际大小到infoNameAdd结构体中
 		GetMergeFileSize( &infoNameAdd );
 		m_Pro->SetPos( PROGRESSPOS_DEAL/2 );
@@ -379,7 +378,7 @@ void CMergeOnboardToRomImageDlg::OnBnClickedOk()
 		MergeImageFile( &infoNameAdd );
 		m_Pro->SetPos( PROGRESSPOS_END );
 		//合并完成提示
-		AfxMessageBox(_T("RomCode.inf merge success!"));
+		AfxMessageBox(_T("ResultFile.bin merge success!"));
 	}
 	else
 	{
@@ -387,7 +386,7 @@ void CMergeOnboardToRomImageDlg::OnBnClickedOk()
 	}
 }
 
-int CMergeOnboardToRomImageDlg::GetInfromatinFromRomImageFile( char *Path, P_INFO_NAME_ADD pInfoNameAdd )
+int CMergeOnboardToRomImageDlg::GetInfromatinFromRomImageFile( CString Path, P_INFO_NAME_ADD pInfoNameAdd )
 {
 	FILE *fp = NULL;
 	char pGetDateBuf[LENTH_TITLE+1] = {0};
@@ -571,16 +570,21 @@ int CMergeOnboardToRomImageDlg::VerifyAddrError( P_INFO_NAME_ADD infoNameAdd )
 	// 只验证地址是否为NULL，名字不用要
 	for ( int iCnt=0; iCnt<iSumFile; iCnt++ )
 	{
-		if( 0==strlen( infoNameAdd->name_add[iCnt].szAddr ) )
+		//没有异常的部分来做验证，有问题的就不用了
+		if ( true!=infoNameAdd->name_add[iCnt].bAddrError )
 		{
-			infoNameAdd->name_add[iCnt].bAddrError = true;
-			bHaveError = true;   //只要地址有一个错误，标志位都被激发，需要提示用户后APP退出
+			if( 0==strlen( infoNameAdd->name_add[iCnt].szAddr ) )
+			{
+				infoNameAdd->name_add[iCnt].bAddrError = true;
+				(infoNameAdd->iValidInfo)--;
+				bHaveError = true;   //只要地址有一个错误，标志位都被激发，需要提示用户后APP退出
+			}
+			else
+			{
+				infoNameAdd->name_add[iCnt].bAddrError = false;
+			}
+			iRes = 0;
 		}
-		else
-		{
-			infoNameAdd->name_add[iCnt].bAddrError = false;
-		}
-		iRes = 0;
 	}
 	//有地址错误才要提示，没有错误就不要做了
 	if ( bHaveError )
@@ -615,46 +619,52 @@ int CMergeOnboardToRomImageDlg::SequenceInfoNameAddStruct( P_INFO_NAME_ADD infoN
 	int iRes = -1;
 	int iCnt = 0, iFind = 0;
 	long AddrArray[fn_INVALID] = {0};
-	bool bNeedCopy = false;
+	int iValidAddr = 0, iSequence = 0;
+
+	//先申请一个本函数中临时使用缓冲空间
+	P_INFO_NAME_ADD infoNameAddTemp = (P_INFO_NAME_ADD)malloc( sizeof(INFO_NAME_ADD) );
+	memset( infoNameAddTemp, '\0', sizeof(INFO_NAME_ADD) );
+	iSequence = iSumFile-1;
 
 	//先把整形地址数组循环存入数组中，待排序使用
 	for ( iCnt=0; iCnt<iSumFile; iCnt++ )
 	{
-		AddrArray[iCnt] = infoNameAdd->name_add[iCnt].Address;
-	}
-	//传去排序函数进行排序
-	LongArraySequence( AddrArray, iCnt );
-	//先循环判断需不需要重新排序，不需要就直接跳过后面步骤，省时间
-	for ( iCnt=0; iCnt<iSumFile; iCnt++ )
-	{
-		if ( AddrArray[iCnt] != infoNameAdd->name_add[iCnt].Address )
+		//如果数据区没有错才进行排序，有错就就进行缓冲存储
+		if ( false == infoNameAdd->name_add[iCnt].bAddrError )
 		{
-			bNeedCopy = true;     //任何一个地址需要排序，就激发标志位
+			AddrArray[iValidAddr++] = infoNameAdd->name_add[iCnt].Address;
+		} 
+		else
+		{
+			memcpy( &(infoNameAddTemp->name_add[iSequence--]), &(infoNameAdd->name_add[iCnt]), sizeof(NAME_ADD) );
 		}
-		iRes = 0;
 	}
 
-	//需要重新排序才做拷贝，否则就是浪费时间
-	if ( bNeedCopy )
+	//传去排序函数进行排序
+	LongArraySequence( AddrArray, iValidAddr );
+
+	//按照排序的顺序重新拷贝内容到临时缓冲区中
+	for ( iCnt=0; iCnt<infoNameAdd->iValidInfo; iCnt++ )
 	{
-		INFO_NAME_ADD TempINA;
-		//按照地址从小到大的顺序重新排序inforNameAdd结构体
-		memset( &TempINA, '\0', sizeof(INFO_NAME_ADD) );
-		memcpy( &TempINA, infoNameAdd, sizeof(INFO_NAME_ADD) );
-		for ( iCnt=0; iCnt<fn_INVALID; iCnt++ )
+		//遍历找到对应地址的文件进行顺序拷贝
+		for ( iFind=0; iFind<iSumFile; iFind++ )
 		{
-			for ( iFind=0; iFind<fn_INVALID; iFind++ )
+			if ( AddrArray[iCnt] == infoNameAdd->name_add[iFind].Address )
 			{
-				if ( AddrArray[iCnt] == TempINA.name_add[iFind].Address )
-				{
-					break;    //找到对应地址的新下表，留给后面拷贝使用
-				}
+				//找到对应下标就拷贝到临时缓冲区中
+				memcpy( &(infoNameAddTemp->name_add[iCnt]), &(infoNameAdd->name_add[iFind]), sizeof(NAME_ADD) );
 			}
-			//找到对应下标进行拷贝
-			memcpy( &(infoNameAdd->name_add[iCnt]), &(TempINA.name_add[iFind]), sizeof( NAME_ADD ) );
 		}
-		iRes = 1;
 	}
+
+	//infoNameAddTemp整理完成后，对目标缓冲区infoNameAdd进行重新配置
+	infoNameAddTemp->iValidInfo = infoNameAdd->iValidInfo;
+	memcpy( infoNameAdd, infoNameAddTemp, sizeof(INFO_NAME_ADD) );
+
+	//记得释放本函数中申请的空间
+	free( infoNameAddTemp );
+	infoNameAddTemp = NULL;
+
 	return iRes;
 }
 
@@ -689,13 +699,14 @@ bool CMergeOnboardToRomImageDlg::VerifyRomImageSize( P_INFO_NAME_ADD infoNameAdd
 	int FileSize;
 	CString str;
 
-	FileSize = (infoNameAdd->name_add[iSumFile-1].Address + infoNameAdd->name_add[iSumFile-1].lSizeFile)/1024/1024;
-	//FileSize = 200;
-	str.Format(_T("当前文件大小为%dM,超过芯片容量！请重新选择！"),FileSize);
+	//有无超过容器范围值(也是最后一个地址文件判断)
+	FileSize = (infoNameAdd->name_add[infoNameAdd->iValidInfo-1].Address + infoNameAdd->name_add[infoNameAdd->iValidInfo-1].lSizeFile);
+	str.Format(_T("合并文件%dM,超过所选%s(%dM)芯片容量！\n请重新选择！"),FileSize/1024/1024, RomImageICName[nIndex], SizeRomImageContain[nIndex]/1024/1024 );
 	
-	//检查是否超出下一个地址范围
-	for (int i=0; i<iSumFile-1; i++)
+	//检查每个文件是否超过下一个地址范围(不判断最后一个地址文件)
+	for (int i=0; i<infoNameAdd->iValidInfo-1; i++)
 	{
+		//这边要修改，边界值已经改变了，可能被排序作乱了alian
 		int fileAddress = infoNameAdd->name_add[i].Address;
 		int fileISize = infoNameAdd->name_add[i].lSizeFile;
 		int fileNextAddress = infoNameAdd->name_add[i+1].Address;
@@ -710,37 +721,15 @@ bool CMergeOnboardToRomImageDlg::VerifyRomImageSize( P_INFO_NAME_ADD infoNameAdd
 	}
 	
 	//验证是否超出芯片大小
-	if (nIndex == 0)
-	{
-		if (FileSize > 128)
-		{			
-			AfxMessageBox(str);
-			return FALSE;
-		}
-		else
-			return TRUE;
+	if ( FileSize > SizeRomImageContain[nIndex] )
+	{			
+		AfxMessageBox(str);
+		return FALSE;
 	}
-	else if (nIndex == 1)
+	else
 	{
-		if (FileSize > 256)
-		{
-			AfxMessageBox(str);
-			return FALSE;
-		}
-		else
-			return TRUE;
+		return TRUE;
 	}
-	else if (nIndex == 2)
-	{
-		if (FileSize > 512)
-		{
-			AfxMessageBox(str);
-			return FALSE;
-		}
-		else
-			return TRUE;
-	}
-	//AfxMessageBox(_T("提示信息，如果需要的话"));
 }
 
 //合并RomImage文件
@@ -765,7 +754,7 @@ int CMergeOnboardToRomImageDlg::MergeImageFile( P_INFO_NAME_ADD infoNameAdd )
 		return -1;
 	}
 	//循环提取各文件
-	for ( int iCnt=0; iCnt<iSumFile; iCnt++ )
+	for ( int iCnt=0; iCnt<infoNameAdd->iValidInfo; iCnt++ )
 	{
 		//按照infoNameAdd对应的长度申请暂用空间
 		pMergeData = (byte *)malloc( infoNameAdd->name_add[iCnt].lSizeFile*sizeof(char) );
@@ -787,7 +776,7 @@ int CMergeOnboardToRomImageDlg::MergeImageFile( P_INFO_NAME_ADD infoNameAdd )
 		free( pMergeData ); pMergeData = NULL; lCnt = 0;
 
 		//2.到下一个文件偏移地址之前填充0xFF数据
-		if ( (iSumFile-1)>iCnt )
+		if ( (infoNameAdd->iValidInfo-1)>iCnt )
 		{
 			l0XFF_Len = (infoNameAdd->name_add[iCnt+1].Address-infoNameAdd->name_add[iCnt].Address) - infoNameAdd->name_add[iCnt].lSizeFile;
 		} 
@@ -832,7 +821,6 @@ long CMergeOnboardToRomImageDlg::GetMergeFileData( byte *FileData, int Index, P_
 		lRes = -1;
 	}
 	//按照实际内容直接提取文件数据
-	char cGetChar;
 	fread( FileData, infoNameAdd->name_add[Index].lSizeFile, 1, fp );
 	fclose( fp );
 	fp = NULL;
